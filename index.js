@@ -10,14 +10,16 @@ app.use(express.json());
 
 app.post('/signup', async (req, res) => {
   const email = req.body.email;
-  const password = await bcrypt.hash(req.body.password, 10);
-  const name = req.body.name;
 
   try {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length > 0) {
+      res.status(409);
       return res.json({ message: "User already exists" });
     }
+
+    const password = await bcrypt.hash(req.body.password, 10);
+    const name = req.body.name;
 
     await db.query('INSERT INTO users (email, password, name) VALUES ($1, $2, $3)', [email, password, name]);
 
@@ -40,13 +42,16 @@ app.post('/login', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
+      res.status(404);
       return res.json({ message: "User does not exist" });
+      
     }
 
     const user = result.rows[0];
     const isPasswordValid = await bcrypt.compare(plainPassword, user.password);
 
     if (!isPasswordValid) {
+      res.status(401);
       return res.json({ message: "Invalid password" });
     }
 
