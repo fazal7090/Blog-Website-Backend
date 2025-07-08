@@ -2,10 +2,12 @@
   "dependencies": {
     "bcrypt": "^6.0.0",
     "express": "^5.1.0",
+    "express-validator": "^7.2.1",
     "pg": "^8.16.3"
   },
   "name": "express",
   "version": "1.0.0",
+  "type": "module",
   "description": "Server side code writing in express",
   "main": "index.js",
   "scripts": {
