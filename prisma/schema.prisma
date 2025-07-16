@@ -18,6 +18,8 @@ model users {
   email          String  @unique @db.VarChar(255)
   hashedpassword String
   posts   post[]
+  role           String  @default("user") // "user" or "admin"
+  isDeleted Boolean @default(false)  // flag for admin to deactivate user
 }
 
 model post {

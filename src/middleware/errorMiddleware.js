@@ -1,0 +1,12 @@
+import jwt from 'jsonwebtoken';
+import { validationResult } from 'express-validator';
+
+
+// Middleware to handle validation errors
+export function handleValidation(req, res, next) {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+    next();
+  }

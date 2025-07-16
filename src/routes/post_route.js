@@ -5,23 +5,20 @@ import {
   deletePostsByUser,
   updatePost,
   getPost,
-  deletePostById
+  deletePostById,
+  getallPosts
 } from '../controllers/postcontroller.js';
+import {  handleValidation } from '../middleware/errorMiddleware.js';
+import {authMiddleware} from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Middleware to handle validation errors
-function handleValidation(req, res, next) {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-  next();
-}
+
 
 // Add a post (title, content required)
 router.post(
   '/add',
+  authMiddleware,
   [
     body('title').notEmpty().withMessage('title is required'),
     body('content').notEmpty().withMessage('content is required')
@@ -33,6 +30,7 @@ router.post(
 // Delete all posts for a user (no userId in body, uses req.user.id)
 router.delete(
   '/delete_all',
+  authMiddleware,
   handleValidation,
   deletePostsByUser
 );
@@ -40,14 +38,21 @@ router.delete(
 // Update a post (postId in URL, title and content required in body)
 router.put(
   '/update/:postId',
+  authMiddleware,
   [
     param('postId').notEmpty().withMessage('postId is required'),
     body('title').notEmpty().withMessage('title is required'),
-    body('content').notEmpty().withMessage('content is required'),
-    body('userId').notEmpty().withMessage('User ID is required')
+    body('content').notEmpty().withMessage('content is required')
   ],
   handleValidation,
   updatePost
+);
+
+// Get all posts of a specific user 
+router.get(
+  '/getallposts',
+  authMiddleware,
+  getallPosts
 );
 
 // Get a post (postId in URL required)
@@ -58,9 +63,12 @@ router.get(
   getPost
 );
 
+
+
 // Delete a specific post by postId (ownership check)
 router.delete(
   '/delete/singlepost/:postId',
+  authMiddleware,
   [param('postId').notEmpty().withMessage('postId is required')],
   handleValidation,
   deletePostById

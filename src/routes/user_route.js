@@ -4,21 +4,19 @@ import {
   signup,
   login,
   updateUser,
-  patchUser,
   deleteUser,
   getUser
 } from '../controllers/usercontroller.js';
 
+import { generateTokenAndRespond} from '../middleware/userMiddleware.js';
+import { authMiddleware } from '../middleware/authMiddleware.js';
+import { handleValidation } from '../middleware/errorMiddleware.js';
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+
+
 const router = express.Router();
 
-// Validation error handler middleware
-const handleValidation = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-  next();
-};
 
 // Signup route with validation
 router.post(
@@ -45,14 +43,15 @@ router.post(
     body('password').notEmpty().withMessage('Password is required'),
     handleValidation
   ],
-  login
+  login,
+  generateTokenAndRespond
 );
 
 // PUT update user (full update, all fields required except password)
 router.put(
   '/user_update',
+  authMiddleware,
   [
-    body('email').isEmail().withMessage('Valid email is required'),
     body('name').notEmpty().withMessage('Name is required'),
     body('age').isInt({ min: 0 }).withMessage('Age must be a positive integer'),
     body('gender').isIn(['Male', 'Female', 'Other']).withMessage('Gender must be male, female, or other'),
@@ -67,8 +66,8 @@ router.put(
 // PATCH update user (partial update, all fields optional except email)
 router.patch(
   '/user_update',
+  authMiddleware,
   [
-    body('email').isEmail().withMessage('Valid email is required'),
     body('name').optional().notEmpty().withMessage('Name cannot be empty'),
     body('age').optional().isInt({ min: 0 }).withMessage('Age must be a positive integer'),
     body('gender').optional().isIn(['Male', 'Female', 'Other']).withMessage('Gender must be male, female, or other'),
@@ -77,12 +76,13 @@ router.patch(
     body('address').optional().notEmpty().withMessage('Address cannot be empty'),
     handleValidation
   ],
-  patchUser
+  updateUser
 );
 
 // Delete user route with validation
 router.delete(
   '/user_delete',
+  authMiddleware,
   [
     body('email').isEmail().withMessage('Valid email is required'),
     body('password').notEmpty().withMessage('Password is required'),
@@ -92,6 +92,6 @@ router.delete(
 );
 
 // Get user by email (no validation needed)
-router.get('/user/:email', getUser);
+router.get('/user/details', authMiddleware, getUser);
 
 export default router;

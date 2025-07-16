@@ -34,25 +34,20 @@ export const signup = async (req, res) => {
   }
 };
 
-export const login = async (req, res) => {
-  const email = req.body.email;
-  const plainPassword = req.body.password;
+export const login = async (req, res, next) => {
+  const { email, password } = req.body;
   try {
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user) {
-      res.status(404);
-      return res.json({ message: "User does not exist", data: null });
+      return res.status(404).json({ message: 'User does not exist', data: null });
     }
-    const isPasswordValid = await bcrypt.compare(plainPassword, user.hashedpassword);
+    const isPasswordValid = await bcrypt.compare(password, user.hashedpassword);
     if (!isPasswordValid) {
-      res.status(401);
-      return res.json({ message: "Invalid password", data: null });
+      return res.status(401).json({ message: 'Invalid password', data: null });
     }
-    const { hashedpassword, ...userWithoutPassword } = user;
-    res.json({
-      message: "Login successful",
-      data: { email }
-    });
+    // Attach user info to req for the middleware
+    req.user = { id: user.id, email: user.email , role: user.role };
+    next(); // Pass control to the JWT middleware
   } catch (err) {
     console.error(err);
     res.status(500).send(err);
@@ -60,47 +55,44 @@ export const login = async (req, res) => {
 };
 
 export const updateUser = async (req, res) => {
-  const { email, name, age, gender, city, country, address } = req.body;
-  try {
-    const user = await prisma.users.findUnique({ where: { email } });
-    if (!user) {
-      return res.status(404).json({ message: "User not found", data: null });
-    }
-    const updatedUser = await prisma.users.update({
-      where: { email },
-      data: { name, age, gender, city, country, address },
-    });
-    const { hashedpassword, ...userWithoutPassword } = updatedUser;
-    res.json({ message: "Profile fully replaced", data: userWithoutPassword });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send(err);
-  }
-};
+  const userId = req.user.userId;
+  const { name, age, gender, city, country, address } = req.body;
+  const isPatch = req.method === 'PATCH';
 
-export const patchUser = async (req, res) => {
-  const { email, ...fieldsToUpdate } = req.body;
+  // For PATCH, only update provided fields
+  let fieldsToUpdate;
+if (isPatch) {
+  fieldsToUpdate = { ...req.body };
+} else {
+  fieldsToUpdate = { name, age, gender, city, country, address };
+}
+
   try {
-    const user = await prisma.users.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ message: "User not found", data: null });
     }
     const updatedUser = await prisma.users.update({
-      where: { email },
+      where: { id: userId },
       data: fieldsToUpdate,
     });
     const { hashedpassword, ...userWithoutPassword } = updatedUser;
-    res.json({ message: "Profile updated", data: userWithoutPassword });
+    res.json({
+      message: isPatch ? "Profile updated" : "Profile fully replaced",
+      data: userWithoutPassword
+    });
   } catch (err) {
     console.error(err);
     res.status(500).send(err);
   }
 };
 
+
 export const deleteUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { password } = req.body;
+  const userId = req.user.userId;
   try {
-    const user = await prisma.users.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ message: "User not found", data: null });
     }
@@ -108,7 +100,7 @@ export const deleteUser = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid password", data: null });
     }
-    await prisma.users.delete({ where: { email } });
+    await prisma.users.delete({ where: { id: userId } });
     res.json({ message: "User deleted successfully", data: null });
   } catch (err) {
     console.error(err);
@@ -117,9 +109,9 @@ export const deleteUser = async (req, res) => {
 };
 
 export const getUser = async (req, res) => {
-  const email = req.params.email;
+  const userId = req.user.userId;
   try {
-    const user = await prisma.users.findUnique({ where: { email } });
+    const user = await prisma.users.findUnique({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({ message: "User not found", data: null });
     }

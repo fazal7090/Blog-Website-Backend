@@ -2,9 +2,10 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Add a new post for a user (userId from req.userId)
+// Add a new post for a user (userId from req.user.userId)
 export const addPost = async (req, res) => {
-  const { title, content, userId } = req.body;
+  const { title, content } = req.body;
+  const userId = req.user.userId;
   try {
     const post = await prisma.post.create({
       data: {
@@ -19,10 +20,15 @@ export const addPost = async (req, res) => {
   }
 };
 
-// Delete all posts for a user (userId from req.userId)
+// Delete all posts for a user (userId from token)
 export const deletePostsByUser = async (req, res) => {
-  const { userId } = req.body;
+  const userId = req.user.userId;
   try {
+    // First, check if any posts exist for this user
+    const posts = await prisma.post.findMany({ where: { userId: Number(userId) } });
+    if (!posts || posts.length === 0) {
+      return res.status(404).json({ error: 'No post to delete' });
+    }
     const deleted = await prisma.post.deleteMany({
       where: { userId: Number(userId) },
     });
@@ -35,7 +41,8 @@ export const deletePostsByUser = async (req, res) => {
 // Update a post by postId (only if owned by user)
 export const updatePost = async (req, res) => {
   const { postId } = req.params;
-  const { title, content, userId } = req.body; // all from body
+  const { title, content } = req.body; // userId is not needed from body
+  const userId = req.user.userId;
   try {
     const post = await prisma.post.findUnique({
       where: { id: Number(postId) },
@@ -72,10 +79,30 @@ export const getPost = async (req, res) => {
   }
 };
 
+// Get all posts of a specific user (userId from token)
+export const getallPosts = async (req, res) => {
+ const userId = req.user.userId;
+ console.log("User ID from token:", userId);
+  try {
+    const user = await prisma.users.findUnique({
+      where: { id: Number(userId) },
+    });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const posts = await prisma.post.findMany({
+      where: { userId: Number(userId) },
+    });
+    res.status(200).json({ message: 'All Posts fetched successfully', data: posts });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
 // Delete a specific post by postId (only if owned by user)
 export const deletePostById = async (req, res) => {
   const { postId } = req.params;
-  const { userId } = req.body;
+  const userId = req.user.userId;
   try {
     const post = await prisma.post.findUnique({
       where: { id: Number(postId) },
@@ -89,7 +116,7 @@ export const deletePostById = async (req, res) => {
     await prisma.post.delete({
       where: { id: Number(postId) },
     });
-    res.status(200).json({ message: 'Post deleted successfully', data: null });
+    res.status(200).json({ message: 'Post deleted successfully', data: post });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
