@@ -47,7 +47,7 @@ export const adminUndoDeleteUser = async (req, res) => {
     });
     const { hashedpassword, isDeleted, ...userWithoutPassword } = user;
     // Return the user data without the password
-    res.json({ message: "User restored successfully", data: user });
+    res.json({ message: "User restored successfully", data: userWithoutPassword });
   } catch (err) {
     console.error(err);
     res.status(500).send(err);
