@@ -32,19 +32,6 @@ export const getAllPosts = async (req, res) => {
   }
 };
 
-// Get all posts of a specific user (userId in body)
-export const getPostsByUser = async (req, res) => {
-  const { userId } = req.params;
-  try {
-    const posts = await prisma.post.findMany({
-      where: { userId: Number(userId) }
-    });
-    res.status(200).json({ message: 'User posts fetched', data: posts });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
 // Delete a specific post of a user (postId and userId in params)
 export const adminDeletePost = async (req, res) => {
   const { postId, userId } = req.params;
