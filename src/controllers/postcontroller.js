@@ -6,6 +6,7 @@ const prisma = new PrismaClient();
 export const addPost = async (req, res) => {
   const { title, content } = req.body;
   const userId = req.user.userId;
+
   try {
     const post = await prisma.post.create({
       data: {
@@ -14,10 +15,15 @@ export const addPost = async (req, res) => {
         userId: Number(userId),
       },
     });
-    res.status(201).json({ message: 'Post created successfully', data: post });
+  
+    // Rename destructured userId to avoid conflict
+    const { userId: _removed, ...postWithoutUserId } = post;
+
+    res.status(201).json({ message: 'Post created successfully', data: postWithoutUserId });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
+  
 };
 
 // Delete all posts for a user (userId from token)
@@ -32,6 +38,10 @@ export const deletePostsByUser = async (req, res) => {
     const deleted = await prisma.post.deleteMany({
       where: { userId: Number(userId) },
     });
+    // Return the count of deleted posts
+    if (deleted.count === 0) {  
+          res.status(404).json({ message: 'No post to delete', data: null});
+    }
     res.status(200).json({ message: 'All posts deleted for user', data: { deletedCount: deleted.count } });
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -57,7 +67,8 @@ export const updatePost = async (req, res) => {
       where: { id: Number(postId) },
       data: { title, content },
     });
-    res.status(200).json({ message: 'Post updated successfully', data: updated });
+    const { userId, ...postWithoutUserId } = updated;
+    res.status(200).json({ message: 'Post updated successfully', data: postWithoutUserId });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -70,19 +81,32 @@ export const getPost = async (req, res) => {
     const post = await prisma.post.findUnique({
       where: { id: Number(postId) },
     });
+
+        const { userId, ...postWithoutUserId } = post;
+
     if (!post) {
       return res.status(404).json({ error: 'Post not found' });
     }
-    res.status(200).json({ message: 'Post fetched successfully', data: post });
+    res.status(200).json({ message: 'Post fetched successfully', data: postWithoutUserId });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
 
-// Get all posts of a specific user (userId from token)
+// Get all posts of a specific user 
 export const getallPosts = async (req, res) => {
- const userId = req.user.userId;
- console.log("User ID from token:", userId);
+  const isAdmin = req.user.role === 'admin';
+  let userId;
+
+  if (isAdmin) {
+    userId = req.params.userId;
+    if (!userId) {
+      return res.status(400).json({ error: 'userId parameter is required for admin' });
+    }
+  } else {
+    userId = req.user.userId;
+  }
+
   try {
     const user = await prisma.users.findUnique({
       where: { id: Number(userId) },
@@ -90,14 +114,23 @@ export const getallPosts = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+
     const posts = await prisma.post.findMany({
       where: { userId: Number(userId) },
     });
-    res.status(200).json({ message: 'All Posts fetched successfully', data: posts });
+
+    if (!posts || posts.length === 0) {
+      return res.status(404).json({ error: 'No posts found for this user' });
+    }
+    // Remove userId from each post
+    const postsWithoutUserId = posts.map(({ userId, ...rest }) => rest);
+    res.status(200).json({ message: 'All Posts fetched successfully', data: postsWithoutUserId });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 };
+  
+
 
 // Delete a specific post by postId (only if owned by user)
 export const deletePostById = async (req, res) => {
@@ -116,7 +149,8 @@ export const deletePostById = async (req, res) => {
     await prisma.post.delete({
       where: { id: Number(postId) },
     });
-    res.status(200).json({ message: 'Post deleted successfully', data: post });
+    const { userId, ...postWithoutUserId } = post;
+    res.status(200).json({ message: 'Post deleted successfully', data: postWithoutUserId });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

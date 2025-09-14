@@ -5,12 +5,12 @@ import {
   deletePostsByUser,
   updatePost,
   getPost,
-  deletePostById
+  deletePostById,
+  getallPosts
 } from '../controllers/postcontroller.js';
 
 import {
   getAllPosts,
-  getPostsByUser,
   adminDeletePost,
   adminUpdatePost
 } from '../controllers/admin_post_controller.js';
@@ -93,7 +93,7 @@ router.get(
   requireAdmin,
   [param('userId').notEmpty().withMessage('userId is required')],
   handleValidation,
-  getPostsByUser
+  getallPosts
 );
 
 // Admin: Delete a specific post of a user
